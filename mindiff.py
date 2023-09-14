@@ -38,8 +38,8 @@ class Tensor:
         out = Tensor(self.data + other.data, (self, other), "+")
 
         def backward():
-            self_unbroadcast_outgrad = self.unbroadcast_gradient(self.data, out.grad)
-            other_unbroadcast_outgrad = self.unbroadcast_gradient(other.data, out.grad)
+            self_unbroadcast_outgrad = self._unbroadcast_gradient(self.data, out.grad)
+            other_unbroadcast_outgrad = self._unbroadcast_gradient(other.data, out.grad)
             self.grad += 1.0 * self_unbroadcast_outgrad
             other.grad += 1.0 * other_unbroadcast_outgrad
 
@@ -48,14 +48,16 @@ class Tensor:
 
     def __mul__(self, other):
         """
-        TODO: add unbroadcast check in backward
+        Multiplies the two tensors together.
         """
         other = self._other_check(other)
         out = Tensor(self.data * other.data, (self, other), "*")
 
         def backward():
-            self.grad += other.data * out.grad
-            other.grad += self.data * out.grad
+            self_unbroadcast_outgrad = self._unbroadcast_gradient(self.data, out.grad)
+            other_unbroadcast_outgrad = self._unbroadcast_gradient(other.data, out.grad)
+            self.grad += other.data * self_unbroadcast_outgrad
+            other.grad += self.data * other_unbroadcast_outgrad
 
         out._backward = backward
         return out
@@ -141,25 +143,37 @@ class Tensor:
         out._backward = backward
         return out
 
-    def unbroadcast_gradient(self, child, global_gradient):
+    def _unbroadcast_gradient(self, child, global_gradient):
         """
-        TODO: Review code and ensure that this *always* works, no matter how array is
-        broadcast
+        This function unbroadcasts the global gradient so that it can then be passed
+        on to the child.
         """
         correct_global_gradient = global_gradient
 
+        # start unbroadcast if child and global_gradient shapes mismatch
         if child.shape != global_gradient.shape:
-            dimensions_diff = np.abs(global_gradient.ndim - child.ndim)
-            if dimensions_diff != 0:
-                summation_dims = tuple(range(dimensions_diff))
-                correct_global_gradient = np.sum(global_gradient, axis=summation_dims)
+            # dimensions preppended to child to broadcast
+            n_extra_dims = global_gradient.ndim - child.ndim
+            extra_dims = tuple(range(n_extra_dims)) if n_extra_dims > 0 else ()
 
-                originally_ones = tuple(
-                    [axis for axis, size in enumerate(child.shape) if size == 1]
+            # dimensions in global_gradient where child originally had ones
+            one_dims = tuple(
+                [
+                    axis + n_extra_dims
+                    for axis, size in enumerate(child.shape)
+                    if size == 1
+                ]
+            )
+            # dimensions where we will sum over in the global gradient
+            summation_dims = extra_dims + one_dims
+            correct_global_gradient = global_gradient.sum(
+                axis=summation_dims, keepdims=True
+            )
+
+            # squeezing over the extra dimensions
+            if n_extra_dims > 0:
+                correct_global_gradient = np.squeeze(
+                    correct_global_gradient, axis=extra_dims
                 )
-                if len(originally_ones) != 0:
-                    correct_global_gradient = np.sum(
-                        correct_global_gradient, axis=originally_ones, keepdims=True
-                    )
 
         return correct_global_gradient
