@@ -171,10 +171,10 @@ class Tensor:
 
     # add tile, reshape, squeeze functions
     def __sub__(self, other):
-        """
-        TODO: add __rsub__ method
-        """
         return self + (-other)
+
+    def __rsub__(self, other):
+        return (-self) + other
 
     def _other_check(self, other):
         """
@@ -186,8 +186,7 @@ class Tensor:
 
     def sum(self, axis=None):
         """
-        TODO: Add backward support for different dimensions of summation.
-        Backward is only guaranteed to work for summing last axis of 2D array.
+        Summation along some axis
         """
         out = Tensor(np.sum(self.data, axis=axis), (self,), "sum")
 
