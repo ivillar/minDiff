@@ -4,7 +4,11 @@ import numpy as np
 
 class Tensor:
     def __init__(self, data, _children=(), _op=""):
-        self.data = data if isinstance(data, np.ndarray) else np.array(data)
+        self.data = (
+            data.astype("float64")
+            if isinstance(data, np.ndarray)
+            else np.array(data, dtype="float64")
+        )
         self._prev = set(_children)
         self._op = _op
         self.grad = 0.0
@@ -38,10 +42,11 @@ class Tensor:
         out = Tensor(self.data + other.data, (self, other), "+")
 
         def backward():
-            self_unbroadcast_outgrad = self._unbroadcast_gradient(self.data, out.grad)
-            other_unbroadcast_outgrad = self._unbroadcast_gradient(other.data, out.grad)
-            self.grad += 1.0 * self_unbroadcast_outgrad
-            other.grad += 1.0 * other_unbroadcast_outgrad
+            selfgrad = 1.0 * out.grad
+            othergrad = 1.0 * out.grad
+
+            self.grad += self._unbroadcast_gradient(self.data, selfgrad)
+            other.grad += self._unbroadcast_gradient(other.data, othergrad)
 
         out._backward = backward
         return out
@@ -54,10 +59,11 @@ class Tensor:
         out = Tensor(self.data * other.data, (self, other), "*")
 
         def backward():
-            self_unbroadcast_outgrad = self._unbroadcast_gradient(self.data, out.grad)
-            other_unbroadcast_outgrad = self._unbroadcast_gradient(other.data, out.grad)
-            self.grad += other.data * self_unbroadcast_outgrad
-            other.grad += self.data * other_unbroadcast_outgrad
+            selfgrad = other.data * out.grad
+            othergrad = self.data * out.grad
+
+            self.grad += self._unbroadcast_gradient(self.data, selfgrad)
+            other.grad += self._unbroadcast_gradient(other.data, othergrad)
 
         out._backward = backward
         return out
@@ -114,6 +120,56 @@ class Tensor:
         out._backward = backward
         return out
 
+    def expand_dims(self, axis=None):
+        """
+        Done here
+        """
+        out = Tensor(np.expand_dims(self.data, axis=axis), (self,), "exdm")
+
+        def backward():
+            self.grad += np.squeeze(out.grad, axis=axis)
+
+        out._backward = backward
+        return out
+
+    def squeeze(self, axis=None):
+        """
+        Done here
+        """
+        out = Tensor(np.squeeze(self.data, axis=axis), (self,), "sqz")
+
+        def backward():
+            self.grad += np.expand_dims(out.grad, axis=axis)
+
+        out._backward = backward
+        return out
+
+    def reshape(self, newshape):
+        """
+        Done here
+        """
+        oldshape = self.data.shape
+        out = Tensor(np.reshape(self.data, newshape=newshape), (self,), "rshp")
+
+        def backward():
+            self.grad += np.reshape(out.grad, oldshape)
+
+        out._backward = backward
+        return out
+
+    def tile(self, reps):
+        """
+        Done here
+        """
+        out = Tensor(np.tile(self.data, reps), (self,), "tl")
+
+        def backward():
+            self.grad += self._backward_tile(out.grad, self.data.shape, reps)
+
+        out._backward = backward
+        return out
+
+    # add tile, reshape, squeeze functions
     def __sub__(self, other):
         """
         TODO: add __rsub__ method
@@ -136,9 +192,13 @@ class Tensor:
         out = Tensor(np.sum(self.data, axis=axis), (self,), "sum")
 
         def backward():
-            m = self.data.shape[0]
             # distribute global gradient to m
-            self.grad += np.tile(np.expand_dims(out.grad, axis=0), (m, 1))
+            expanded_out_grad = (
+                np.expand_dims(out.grad, axis=axis)
+                if isinstance(out.grad, np.ndarray)
+                else np.array([out.grad], dtype="float64")
+            )
+            self.grad += expanded_out_grad * np.ones(self.data.shape)
 
         out._backward = backward
         return out
@@ -177,3 +237,15 @@ class Tensor:
                 )
 
         return correct_global_gradient
+
+    def _backward_tile(self, dY, input_shape, reps):
+        if isinstance(reps, int):
+            reps = (reps,)
+        dim_diff = max(0, len(reps) - len(input_shape))
+        original_array = dY[
+            tuple([0 for _ in range(dim_diff)] + [slice(dim) for dim in input_shape])
+        ]
+        ones = np.ones(((np.prod(reps),) + input_shape))
+        dX = original_array * ones
+        dX = np.sum(dX, axis=0)
+        return dX
