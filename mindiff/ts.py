@@ -29,7 +29,7 @@ class Tensor:
         toposort(self)
         topo_result.reverse()
 
-        self.grad = 1
+        self.grad = np.array(1)
 
         for tensor in topo_result:
             tensor._backward()
