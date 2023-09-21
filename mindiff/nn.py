@@ -3,7 +3,38 @@ from . import ts
 import math
 
 
-class Linear:
+class Module:
+    def __init__(self):
+        self._parameters = {}
+
+    def register_parameter(self, name, param):
+        self._parameters[name] = param
+
+    def parameters(self):
+        for name, param in self._parameters.items():
+            yield param
+        for child in self.children():
+            for param in child.parameters():
+                yield param
+
+    def children(self):
+        for name, attr in vars(self).items():
+            if isinstance(attr, Module):
+                yield attr
+
+    def forward(self):
+        pass
+
+    def __call__(self, X):
+        return self.forward(X)
+
+
+class Parameter:
+    def __init__(self, tensor):
+        self.tensor = tensor
+
+
+class Linear(Module):
     """
     Implements a linear layer in a neural network.
 
@@ -21,13 +52,18 @@ class Linear:
     """
 
     def __init__(self, in_features, out_features):
-        self.W = ts.Tensor(
+        super().__init__()
+        weight_tensor = ts.Tensor(
             np.random.normal(size=(in_features, out_features))
             * math.sqrt(2.0 / in_features)
         )
-        self.b = ts.Tensor(np.zeros((out_features,)))
+        bias_tensor = ts.Tensor(np.zeros((out_features,)))
+        self.weight = Parameter(weight_tensor)
+        self.bias = Parameter(bias_tensor)
+        self.register_parameter("weight", self.weight)
+        self.register_parameter("bias", self.bias)
 
-    def __call__(self, X):
+    def forward(self, X):
         """
         Performs the forward pass of the linear layer.
 
@@ -41,7 +77,7 @@ class Linear:
         ts.Tensor
             The output tensor from the layer.
         """
-        return (X @ self.W) + self.b
+        return (X @ self.weight.tensor) + self.bias.tensor
 
 
 class ReLU:
@@ -60,7 +96,7 @@ class ReLU:
     """
 
     def __init__(self, in_place=False):
-        self.in_place = in_place
+        pass
 
     def __call__(self, tensor):
         """
@@ -88,9 +124,23 @@ class ReLU:
         return out
 
 
+class Tanh:
+    def __init__(self):
+        pass
+
+    def __call__(self, tensor):
+        out = ts.Tensor(np.tanh(tensor.data), (tensor,), "Tanh")
+
+        def backward():
+            tensor.grad += (1 - np.tanh(tensor.data) ** 2) * out.grad
+
+        out._backward = backward
+        return out
+
+
 class Softmax:
     def __init__(self, in_place=False):
-        self.in_place = in_place
+        pass
 
     def _softmax(self, array, axis=None):
         """
@@ -133,12 +183,9 @@ class Softmax:
 
 class CrossEntropyLoss:
     def __init__(self, in_place=False):
-        self.in_place = in_place
+        pass
 
     def __call__(self, output_logits, targets):
-        # import pdb
-
-        # pdb.set_trace()
         m = output_logits.data.shape[0]
         logyhat = np.log(output_logits.data)  # (m, k)
         # (m, 1, k) @ (m, k, 1) = m(m, 1, 1)
