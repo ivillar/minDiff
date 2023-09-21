@@ -124,9 +124,6 @@ class Softmax:
             outgrad_expanded = np.expand_dims(out.grad, axis=-1)  # (m, n, 1)
             result = dsdx @ outgrad_expanded
             squeezed_result = np.squeeze(result, axis=-1)
-            # import pdb
-
-            # pdb.set_trace()
             tensor.grad += squeezed_result
 
         out._backward = backward
