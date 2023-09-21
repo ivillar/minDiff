@@ -4,6 +4,34 @@ import math
 
 
 class Module:
+    """
+    Implements a module to be used in a neural network.
+
+    Attributes
+    ----------
+    _parameters
+        the set of parameters contained in this module. These are
+        pdated during optimization.
+
+    Methods
+    -------
+    register_parameter(string, parameter)
+        add a Parameter object to the _parameters set.
+
+    parameters
+        iterate over all of the Parameters contained within this module and
+        this Module's children
+
+    children
+        iterate over this module's children
+
+    forward(tensor)
+        perform a forward pass on the tensor
+
+    __call__(tensor):
+        calls the forward method on the tensor
+    """
+
     def __init__(self):
         self._parameters = {}
 
@@ -30,6 +58,16 @@ class Module:
 
 
 class Parameter:
+    """
+    Wraps around ts.Tensor objects to signal trainable parameters inside
+    module
+
+    Attrirbutes
+    ------------
+    tensor: ts.Tensor
+        The tensor that is being wrapped
+    """
+
     def __init__(self, tensor):
         self.tensor = tensor
 
@@ -40,10 +78,10 @@ class Linear(Module):
 
     Attributes
     ----------
-    W : ts.Tensor
-        The weight matrix of the linear layer.
-    b : ts.Tensor
-        The bias vector of the linear layer.
+    weight : nn.Parameter
+        A parameter object containing the weight matrix of the linear layer.
+    bias : nn.Parameter
+        A prameter object containing the bias vector of the linear layer.
 
     Methods
     -------
@@ -84,11 +122,6 @@ class ReLU:
     """
     Implements a ReLU (Rectified Linear Unit) activation function in a neural network.
 
-    Attributes
-    ----------
-    in_place : bool
-        Whether to apply the ReLU operation in-place or not.
-
     Methods
     -------
     __call__(tensor)
@@ -125,6 +158,15 @@ class ReLU:
 
 
 class Tanh:
+    """
+    Implements a Tanh (Hyperbolic Tangent) activation function in a neural network.
+
+    Methods
+    -------
+    __call__(tensor)
+        Performs the forward pass of the Tanh activation function.
+    """
+
     def __init__(self):
         pass
 
@@ -139,6 +181,15 @@ class Tanh:
 
 
 class Softmax:
+    """
+    Implements a Softmax layer in a neural network.
+
+    Methods
+    -------
+    __call__(tensor)
+        Performs the forward pass of the softmax activation function.
+    """
+
     def __init__(self, in_place=False):
         pass
 
@@ -182,6 +233,15 @@ class Softmax:
 
 
 class CrossEntropyLoss:
+    """
+    Implements a cross entropy loss function in a neural network
+
+    Methods
+    -------
+    __call__(tensor)
+        Performs the forward pass of the cross entropy loss function.
+    """
+
     def __init__(self, in_place=False):
         pass
 
