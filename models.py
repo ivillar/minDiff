@@ -2,16 +2,22 @@ from mindiff import nn
 
 
 class MLPClassifier(nn.Module):
-    def __init__(self, in_features, hidden_size, num_classes):
+    def __init__(self, layer_size_list):
         super().__init__()
-        self.linear_1 = nn.Linear(in_features, hidden_size)
-        self.relu_1 = nn.ReLU()
-        self.linear_2 = nn.Linear(hidden_size, num_classes)
-        self.softmax = nn.Softmax()
+        self.layers = []
+        for i in range(len(layer_size_list) - 2):
+            old_dims = layer_size_list[i]
+            new_dims = layer_size_list[i + 1]
+            self.layers.append(nn.Linear(old_dims, new_dims))
+            self.layers.append(nn.ReLU())
+        old_dims = layer_size_list[-2]
+        new_dims = layer_size_list[-1]
+        self.layers.append(nn.Linear(old_dims, new_dims))
+        self.layers.append(nn.Softmax())
+        self.layers = nn.ModuleList(self.layers)
 
     def forward(self, X):
-        l1 = self.linear_1(X)
-        r1 = self.relu_1(l1)
-        l2 = self.linear_2(r1)
-        out = self.softmax(l2)
-        return out
+        x = X
+        for layer in self.layers:
+            x = layer(x)
+        return x
