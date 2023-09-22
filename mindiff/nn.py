@@ -72,6 +72,23 @@ class Parameter:
         self.tensor = tensor
 
 
+class ModuleList(Module):
+    def __init__(self, module_list):
+        super().__init__()
+        self._modules = []
+        self._register_modules(module_list)
+
+    def _register_modules(self, module_list):
+        offset = len(self._modules)
+        for i, module in enumerate(module_list):
+            module_name = f"{type(module).__name__}_{i + offset}"
+            setattr(self, module_name, module)
+            self._modules.append(module)
+
+    def __iter__(self):
+        yield from self._modules
+
+
 class Linear(Module):
     """
     Implements a linear layer in a neural network.
