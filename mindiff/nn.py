@@ -264,6 +264,7 @@ class CrossEntropyLoss:
 
     def __call__(self, output_logits, targets):
         m = output_logits.data.shape[0]
+
         logyhat = np.log(output_logits.data)  # (m, k)
         # (m, 1, k) @ (m, k, 1) = m(m, 1, 1)
         L = -np.expand_dims(targets.data, axis=-2) @ np.expand_dims(logyhat, axis=-1)
@@ -278,4 +279,51 @@ class CrossEntropyLoss:
 
         out._backward = backward
 
+        return out
+
+
+class SoftmaxCrossEntropyLoss:
+    def __init__(self):
+        pass
+
+    def _softmax(self, array, axis=None):
+        """
+        Performs numerically stable softmax operation on the input array.
+
+        Parameters
+        ----------
+        array : np.ndarray
+            The input 2D numpy array.
+
+        Returns
+        -------
+        np.ndarray
+            The output array after applying softmax.
+        """
+        shiftx = array - np.max(array, axis=axis, keepdims=True)
+        exps = np.exp(shiftx)
+        return exps / np.sum(exps, axis=axis, keepdims=True)
+
+    def _log_softmax(self, x, axis=None):
+        x_max = np.max(x, axis=axis, keepdims=True)
+        return x - x_max - np.log(np.sum(np.exp(x - x_max), axis=axis, keepdims=True))
+
+    def __call__(self, logits, targets):
+        """
+        logits are unnormalizaed
+        """
+        m = logits.data.shape[0]
+        log_softmax = self._log_softmax(logits.data, axis=-1)
+
+        L = -np.expand_dims(targets.data, axis=-2) @ np.expand_dims(
+            log_softmax, axis=-1
+        )
+        J = np.mean(L)
+        out = ts.Tensor(J, (logits,), "sftmxcel")
+
+        def backward():
+            softmax = self._softmax(logits.data, axis=-1)
+            logits.grad += out.grad * (1 / m) * (softmax - targets.data)
+
+        out._backward = backward
         return out
