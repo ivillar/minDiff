@@ -10,3 +10,4 @@ TODOs:
 3. Add missing docstrings
 4. Make it so that calling a tensor feels more like how PyTorch does it (ex. md.Tensor instead of md.ts.Tensor)
 5. Add DataLoader support
+6. Add BatchNorm and Dropout
