@@ -1,7 +1,6 @@
 ## minDiff
 
-A minimalistic automatic differentiation library based on the Pytorch API.
-Backed by NumPy.
+A minimalistic automatic differentiation library based on the Pytorch API, backed by NumPy.
 
 TODOs:
 1. Subclass np.ndarray for Tensor class
@@ -11,3 +10,5 @@ TODOs:
 4. Make it so that calling a tensor feels more like how PyTorch does it (ex. md.Tensor instead of md.ts.Tensor)
 5. Add DataLoader support
 6. Add BatchNorm and Dropout
+7. Add support for downloading MNIST
+8. Refactor code so Operations are their own class 
